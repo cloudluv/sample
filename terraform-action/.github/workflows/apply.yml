@@ -1,0 +1,32 @@
+name: Terraform example
+
+on:
+  push:
+    branches:
+      - main
+permissions:
+  id-token: write
+  contents: read
+jobs:
+  appy:
+    name: Apply
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Check out code
+        uses: actions/checkout@v2
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v1
+        with:
+          role-to-assume: arn:aws:iam::{accountID}:role/github-action-tf-role # 본인의 IAM role로 변경
+          aws-region: ap-northeast-2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+        with:
+          terraform_version: 1.2.2
+
+      - name: Initialize Terraform
+        run: terraform init -input=false
+
+      - name: Apply Terraform
+        run: terraform apply -auto-approve

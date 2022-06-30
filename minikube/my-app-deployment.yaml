@@ -1,0 +1,36 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: my-app
+  labels:
+    app: my-app
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: my-app
+  template:
+    metadata:
+      labels:
+        app: my-app
+    spec:
+      containers:
+      - name: first-app
+        image: node16/my-app
+        env:
+        - name: PORT
+          value: "8080"
+        ports:
+        - name: http
+          containerPort: 8080
+        imagePullPolicy: IfNotPresent
+      - name: second-app
+        image: node16/my-app
+        env:
+        - name: PORT
+          value: "8081"
+        ports:
+        - name: http
+          containerPort: 8081
+        imagePullPolicy: IfNotPresent
+      

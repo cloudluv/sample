@@ -1,0 +1,5 @@
+---
+- name: set up tutorial service automatically
+  hosts: app
+  roles:
+    - tutorial

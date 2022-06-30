@@ -1,0 +1,27 @@
+- name: add repo 
+  shell: |
+    curl -sL https://rpm.nodesource.com/setup_16.x | sudo bash -
+
+- name: install node
+  become: true
+  shell: |
+    yum install -y nodejs
+
+- name: copy application code
+  template:
+    src: files/app.js
+    dest: /home/ec2-user/app.js
+
+- name: copy tutorial systemd service file
+  become: true
+  template:
+    src: files/tutorial.service
+    dest: /etc/systemd/system/tutorial.service
+
+- name: start service
+  become: true
+  systemd:
+    name: tutorial
+    state: started
+    enabled: yes
+

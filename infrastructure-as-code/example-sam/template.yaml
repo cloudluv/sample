@@ -1,0 +1,40 @@
+Transform: "AWS::Serverless-2016-10-31"
+Description: "example template"
+Resources:
+  ServerlessExample:
+    Type: "AWS::Serverless::Function"
+    Properties:
+      FunctionName: serverless_example_lambda
+      Runtime: nodejs16.x
+      Handler: index.handler
+      CodeUri: app/
+      AutoPublishAlias: live
+      Events:
+        PublicApi:
+          Type: HttpApi
+          Properties:
+            Path: /
+            Method: GET
+      DeploymentPreference:
+        Type: Canary10Percent10Minutes
+        Alarms:
+          - !Ref LatestVersionErrorMetricGreaterThanZeroAlarm
+
+  LatestVersionErrorMetricGreaterThanZeroAlarm:
+    Type: "AWS::CloudWatch::Alarm"
+    Properties:
+      AlarmDescription: Lambda Function Error > 0
+      ComparisonOperator: GreaterThanThreshold
+      Dimensions:
+        - Name: Resource
+          Value: !Sub "${ServerlessExample}:live"
+        - Name: FunctionName
+          Value: !Ref ServerlessExample
+        - Name: ExecutedVersion
+          Value: !GetAtt ServerlessExample.Version.Version
+      EvaluationPeriods: 2
+      MetricName: Errors
+      Namespace: AWS/Lambda
+      Period: 60
+      Statistic: Sum
+      Threshold: 0

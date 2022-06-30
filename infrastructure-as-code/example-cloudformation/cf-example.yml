@@ -1,0 +1,217 @@
+AWSTemplateFormatVersion: "2010-09-09"
+Description: a network template
+Parameters:
+  Stack:
+    Type: String
+    Default: test
+    AllowedValues:
+      - test
+      - dev
+      - staging
+      - prod
+  App:
+    Type: String
+Mappings:
+  RegionMap:
+    ap-northeast-1:
+      shortName: an1
+    ap-northeast-2:
+      shortName: an2
+    us-west-2:
+      shortName: uw2
+Resources:
+  ## VPC
+  MyVPC:
+    Type: "AWS::EC2::VPC"
+    Properties:
+      CidrBlock: 10.5.0.0/16
+      EnableDnsHostnames: true
+      EnableDnsSupport: true
+      Tags:
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Application
+          Value: !Ref App
+        - Key: Name
+          Value:
+            !Join [
+              "-",
+              [
+                vpc,
+                !FindInMap [RegionMap, !Ref "AWS::Region", shortName],
+                !Ref Stack,
+                !Ref App,
+              ],
+            ]
+  ## Subnets
+  PublicSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      AvailabilityZone: us-west-2a
+      CidrBlock: 10.5.1.0/24
+      Tags:
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Application
+          Value: !Ref App
+        - Key: Name
+          Value:
+            !Join [
+              "-",
+              [
+                subnet,
+                !FindInMap [RegionMap, !Ref "AWS::Region", shortName],
+                "a",
+                "public",
+                !Ref Stack,
+                !Ref App,
+              ],
+            ]
+  PublicSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      AvailabilityZone: us-west-2c
+      CidrBlock: 10.5.2.0/24
+      Tags:
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Application
+          Value: !Ref App
+        - Key: Name
+          Value:
+            !Join [
+              "-",
+              [
+                subnet,
+                !FindInMap [RegionMap, !Ref "AWS::Region", shortName],
+                "c",
+                "public",
+                !Ref Stack,
+                !Ref App,
+              ],
+            ]
+  PrivateSubnet1:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      AvailabilityZone: us-west-2a
+      CidrBlock: 10.5.4.0/24
+      Tags:
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Application
+          Value: !Ref App
+        - Key: Name
+          Value:
+            !Join [
+              "-",
+              [
+                subnet,
+                !FindInMap [RegionMap, !Ref "AWS::Region", shortName],
+                "a",
+                "private",
+                !Ref Stack,
+                !Ref App,
+              ],
+            ]
+  PrivateSubnet2:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref MyVPC
+      AvailabilityZone: us-west-2c
+      CidrBlock: 10.5.3.0/24
+      Tags:
+        - Key: Stack
+          Value: !Ref Stack
+        - Key: Application
+          Value: !Ref App
+        - Key: Name
+          Value:
+            !Join [
+              "-",
+              [
+                subnet,
+                !FindInMap [RegionMap, !Ref "AWS::Region", shortName],
+                "c",
+                "private",
+                !Ref Stack,
+                !Ref App,
+              ],
+            ]
+  ## Internet Gateway
+  InternetGateway:
+    Type: AWS::EC2::InternetGateway
+
+  GatewayToInternet:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref MyVPC
+      InternetGatewayId: !Ref InternetGateway
+
+  ## Public Route
+  PublicRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+
+  PublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: GatewayToInternet
+    Properties:
+      RouteTableId: !Ref PublicRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+      GatewayId: !Ref InternetGateway
+
+  PublicSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      RouteTableId: !Ref PublicRouteTable
+
+  PublicSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PublicSubnet2
+      RouteTableId: !Ref PublicRouteTable
+
+  ## NAT GATEWAY
+  NatGateway:
+    Type: AWS::EC2::NatGateway
+    DependsOn: NatPublicIP
+    Properties:
+      SubnetId: !Ref PublicSubnet1
+      AllocationId: !GetAtt NatPublicIP.AllocationId
+
+  ## ELASTIC IP
+  NatPublicIP:
+    Type: AWS::EC2::EIP
+    Properties:
+      Domain: vpc
+    DependsOn: MyVPC
+
+  ## PRIVATE ROUTING
+  PrivateRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref MyVPC
+
+  PrivateRoute:
+    Type: AWS::EC2::Route
+    Properties:
+      NatGatewayId: !Ref NatGateway
+      RouteTableId: !Ref PrivateRouteTable
+      DestinationCidrBlock: 0.0.0.0/0
+
+  PrivateSubnet1RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet1
+      RouteTableId: !Ref PrivateRouteTable
+
+  PrivateSubnet2RouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref PrivateSubnet2
+      RouteTableId: !Ref PrivateRouteTable
